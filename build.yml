@@ -1,0 +1,43 @@
+name: Build Maya APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project if uploaded as zip
+        run: |
+          if [ -f maya_project.zip ]; then
+            mkdir -p _p && unzip -q -o maya_project.zip -d _p
+            echo "PROJECT_DIR=_p" >> $GITHUB_ENV
+          else
+            echo "PROJECT_DIR=." >> $GITHUB_ENV
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp "$PROJECT_DIR"/app/build/outputs/apk/debug/*.apk out/Maya.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maya-APK
+          path: out/Maya.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Maya APK ${{ github.run_number }}
+          files: out/Maya.apk
